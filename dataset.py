@@ -10,62 +10,8 @@ import numpy as np
 import pandas as pd
 import tensorflow as tf
 
-# Population by State
-# According to 2010 Census Projection
-population_by_state = {
-    'Alabama': 4903185,
-    'Alaska': 731545,
-    'Arizona': 7278717,
-    'Arkansas': 3017804,
-    'California': 39512223,
-    'Colorado': 5758736,
-    'Connecticut': 3565287,
-    'Delaware': 973764,
-    'District of Columbia': 705749,
-    'Florida': 21477737,
-    'Georgia': 10617423,
-    'Hawaii': 1415872,
-    'Idaho': 1787065,
-    'Illinois': 12671821,
-    'Indiana': 6732219,
-    'Iowa': 3155070,
-    'Kansas': 2913314,
-    'Kentucky': 4467673,
-    'Louisiana': 4648794,
-    'Maine': 1344212,
-    'Maryland': 6045680,
-    'Massachusetts': 6892503,
-    'Michigan': 9986857,
-    'Minnesota': 5639632,
-    'Mississippi': 2976149,
-    'Missouri': 6137428,
-    'Montana': 1068778,
-    'Nebraska': 1934408,
-    'Nevada': 3080156,
-    'New Hampshire': 1359711,
-    'New Jersey': 8882190,
-    'New Mexico': 2096829,
-    'New York': 19453561,
-    'North Carolina': 10488084,
-    'North Dakota': 762062,
-    'Ohio': 11689100,
-    'Oklahoma': 3956971,
-    'Oregon': 4217737,
-    'Pennsylvania': 12801989,
-    'Rhode Island': 1059361,
-    'South Carolina': 5148714,
-    'South Dakota': 884659,
-    'Tennessee': 6829174,
-    'Texas': 28995881,
-    'Utah': 3205958,
-    'Vermont': 623989,
-    'Virginia': 8535519,
-    'Washington': 7614893,
-    'West Virginia': 1792147,
-    'Wisconsin': 5822434,
-    'Wyoming': 578759,
-    'Puerto Rico': 3193694,
-}
+from info import population_by_state, nearest_states
+from utils import correct_datetime
 
 
 def read_dataset(dst):
@@ -117,48 +63,134 @@ def read_dataset(dst):
     return dset
 
 
-def convert_to_tensor(features, labels=None, batch_size=10):
+# For ARIMAX
+def generate_dset_ARIMAX(rescale=1000, num_extra_states=0, agg_cases=True,
+                         train_size=0.7, validation_size=0.2):
+    """TODO DOCUMENTATION"""
+    
+    # Indicate csv destinations
+    cases_dst = os.getcwd() + '/data/CONVENIENT_us_confirmed_cases.csv'
+    deaths_dst = os.getcwd() + '/data/CONVENIENT_us_deaths.csv'
+
+    # Unpack the raw cases and deaths datasets
+    cases_dset = read_dataset(cases_dst)
+    deaths_dset = read_dataset(deaths_dst)
+
+    # Find the list of dates with format corrected
+    dates = [correct_datetime(date) for date in cases_dset['dates']]
+
+    # Initialize temporary and final data dictionaries for ARIMAX
+    cases, deaths = {}, {}
+    cases_normalized, deaths_normalized = {}, {}
+
+    # Only selecting the 50 states plus D.C. for normalizqtion
+    # Sorry Puerto Rico :(
+    for state in population_by_state.keys():
+
+        # Divide each daily number by the state total population with rescaling
+        state_ppl = population_by_state[state]
+        cases_normalized[state] = [num * rescale / state_ppl for num in
+                                   cases_dset[state]]
+        deaths_normalized[state] = [num * rescale / state_ppl for num in
+                                    deaths_dset[state]]
+
+    # After normalization, build the desired per state
+    for state in population_by_state.keys():
+
+        # Initialize the dictionaries
+        state_cases = {'dates': dates, state: cases_normalized[state]}
+        state_deaths = {'dates': dates, state: deaths_normalized[state]}
+
+        # Use cases as explanatory variables for death predictions
+        if agg_cases:
+            col_name = state + '_cases'
+            state_deaths[col_name] = cases_normalized[state]
+
+        # Adding nearest n states
+        if num_extra_states != 0:
+            if num_extra_states < 51:
+                extra_states = nearest_states[state][:num_extra_states]
+
+                for extra_state in extra_states:
+                    state_cases[extra_state] = cases_normalized[extra_state]
+                    state_deaths[extra_state] = deaths_normalized[extra_state]
+
+                    if agg_cases:
+                        col_name = extra_state + '_cases'
+                        state_deaths[col_name] = cases_normalized[extra_state]
+
+            else:
+                raise(Exception('Exceeding the max number of additional '
+                                'states.'))
+
+        # Build the corresponding dataframes before storage
+        cases_df = pd.DataFrame.from_dict(state_cases).set_index('dates')
+        deaths_df = pd.DataFrame.from_dict(state_deaths).set_index('dates')
+
+        # Split the dataset into train, validate, and test partitions
+        num_samples = len(dates)
+        num_train = int(train_size * num_samples)
+        num_val = int(validation_size * num_samples)
+        end_idx_val = num_train + num_val
+
+        cases[state] = {
+            'train': cases_df[: num_train],
+            'validate': cases_df[num_train: end_idx_val],
+            'test': cases_df[end_idx_val:]
+        }
+
+        deaths[state] = {
+            'train': deaths_df[: num_train],
+            'validate': deaths_df[num_train: end_idx_val],
+            'test': deaths_df[end_idx_val:]
+        }
+
+    return cases, deaths
+
+
+# For LSTM
+# TODO:
+#  1) convert to time series
+#  2) augment the data with cases number if needed
+#  3) split data into train validate test, no randomize!!!
+#  4)
+def convert_to_tensor(features, labels, batch_size=10):
     """Generate dataset with mini batches
 
     Args:
         features:       A numpy array representing the features for the dataset.
         labels:         A numpy array representing the labels for the dataset.
-                            Default = None
         batch_size:     An integer indicating the size of each mini batch.
                             Default = 10
 
     Returns:
         dset:           The desired dataset with mini batches. Each batch is in
-                            the form of: (features, labels).
+                            the form of: (featurcases[state] = {
+            'train': cases_df[: num_train],
+            'validate': cases_df[num_train: end_idx_val],
+            'test': cases_df[end_idx_val:]
+        }es, labels).
     """
 
-    data = (features, labels) if labels is not None else features
-
-    dset = tf.data.Dataset.from_tensor_slices(data)
+    dset = tf.data.Dataset.from_tensor_slices((features, labels))
 
     dset = dset.batch(batch_size)
 
     return dset
 
 
-def convert_to_time_series(dset, interval, offset=0, normalize=True, rescale=1):
+def convert_to_time_series(dset, lag, rescale=1000):
     """Convert the number of daily cases/deaths to a time series dataset
 
     Args:
         dset:           A dictionary representing the original daily number
                             by state dataset. It should have the format of
                             {state: [daily numbers], 'dates': [dates]}
-        interval:       An integer representing the time interval used to
+        lag:            An integer representing the time lag used to
                             construct time series features.
-        offset:         An integer representing the label time offset from the
-                            last point of time in features.
-                            Default = 0
-        normalize:      A boolean to indicate whether to normalize each state's
-                            daily number by its state population or not.
-                            Default = True
         rescale:        An integer (or float) to rescale the normalized daily
                             number.
-                            Default = 1
+                            Default = 1000
 
     Returns:
         time_dset:      A dictionary representing the time series version of
@@ -174,34 +206,139 @@ def convert_to_time_series(dset, interval, offset=0, normalize=True, rescale=1):
 
     for state in time_dset.keys():
 
-        if normalize:
-            # Divide each daily number by the state total population
-            state_ppl = population_by_state[state]
-            daily_num = [num * rescale / state_ppl for num in dset[state]]
+        # Divide each daily number by the state total population
+        state_ppl = population_by_state[state]
+        daily_num = [num * rescale / state_ppl for num in dset[state]]
 
-        else:
-            daily_num = [num for num in dset[state]]
-
-        # Capture fragments of length <interval> as feature values, and the
-        # offset daily number as its label
-        ft_vals = [daily_num[i: i + interval] for i in range(total_days -
-                                                             interval - offset)]
-        labels = [daily_num[i] for i in range(interval + offset, total_days)]
-
-        # Make the remaining fragments feature values for prediction
-        unknown = [daily_num[i: i + interval] for i in range(
-            total_days - interval - offset, total_days - interval + 1
-        )]
+        # Capture fragments of length <lag> as feature values
+        ft_vals = [daily_num[i: i+lag] for i in range(total_days - lag)]
+        labels = [daily_num[i] for i in range(lag, total_days)]
 
         # Convert the lists into numpy array before storage
-        X, y, Z = np.array(ft_vals), np.array(labels), np.array(unknown)
+        X, y, Z = np.array(ft_vals), np.array(labels), np.array(daily_num)
         time_dset[state] = [X, y, Z]
 
     return time_dset
 
 
-def split_dset(dset, train_size=0.7, validation_size=0.2, random=True,
-               normalize=False, for_tf=False):
+def augment_dset(dset, offset=0, num_extra_states=0, extra_cases=None,
+                 aug_offset=0):
+    # For each state in dset, find the nearest n states, features
+    #  sliced by [: -offset]
+    #  each fragments [
+    #  [state cases], [other state cases]
+    #  ] 
+    #  or
+    #  [
+    #   [[state cases], [other state cases]],
+    #   [[state deaths], [other state deaths]]
+    #  ]
+
+    """TODO DOCUMENTATION"""
+    
+    # Make sure cases offset is not larger than death offset to prevent index
+    # out of range issue
+    offset_diff = offset - aug_offset
+    if extra_cases and offset_diff < 0:
+        raise(Exception('Case offset exceeding death offset.'))
+
+    # Make sure lag and offset are not too large to not have a proper dataset
+    lag = dset['Alabama'][0][0].shape[0]
+    num_samples = dset['Alabama'][1].shape[0]
+    num_days = dset['Alabama'][2].shape[0]
+
+    if num_samples <= offset or num_days < lag + offset + 3:
+        raise (Exception('Dataset too small. Please decrease the lag or the '
+                         'offset.'))
+    
+    # Initialize aggregated dataset
+    aug_dset = {state: [] for state in dset.keys()}
+    
+    for state in dset.keys():
+
+        # Find the nearest n states
+        extra_states = nearest_states[state][:num_extra_states]
+
+        # Unpack features, labels, and unlabeled fragments
+        X, y, Z = dset[state]
+
+        # Reconstruct features with offset and augmentation with case numbers
+        aug_X = []
+
+        for i, frag in enumerate(X[: -offset]):
+            aug_frag = []
+
+            # With augmentation
+            if extra_cases:
+                # Find the case number fragment with the augmentation offset
+                cases_frag = extra_cases[state][0][i + offset_diff]
+                # Rebuild fragment into a 2-channel (3D) fragment
+                aug_frag = [[frag], [cases_frag]]
+            else:
+                # Copy the original fragment
+                aug_frag.append(frag)
+
+            # Add nearest states' numbers to each fragment as well
+            for extra_state in extra_states:
+                # Find the corresponding fragment
+                extra_X_frag = dset[extra_state][0][i]
+
+                if extra_cases:
+                    # Append the death and case fragments to the
+                    # corresponding part of the augmented fragment
+                    case_loc = i + offset_diff
+                    extra_X_frag_cases = extra_cases[extra_state][0][case_loc]
+                    aug_frag[0].append(extra_X_frag)
+                    aug_frag[1].append(extra_X_frag_cases)
+                else:
+                    # Copy and stack below the existing list of numbers
+                    aug_frag.append(extra_X_frag)
+            
+            aug_X.append(aug_frag)
+
+        aug_dset[state].append(aug_X)
+
+        # Store the labels considering prediction offset
+        aug_dset[state].append(y[offset:])
+
+        # For unlabeled fragments
+        aug_Z = []
+
+        # Find the earliest unused data's indices
+        start_idx = Z.shape[0] - offset - lag
+        cases_start_idx = Z.shape[0] - aug_offset - lag
+
+        # With augmentation
+        if extra_cases:
+            # Rebuild into a 2-channel (3D) array
+            cases_Z = extra_cases[state][2]
+            aug_Z = [
+                [Z[start_idx:]],
+                [cases_Z[cases_start_idx:]]
+            ]
+        else:
+            # Copy the unused data
+            aug_Z.append(Z[start_idx:])
+
+        # Augment the data with other states' numbers
+        for extra_state in extra_states:
+            extra_Z = dset[extra_state][2][start_idx:]
+            if extra_cases:
+                # Append the death and case numbers to the
+                # corresponding part of the augmented array
+                extra_Z_cases = extra_cases[extra_state][2][cases_start_idx:]
+                aug_Z[0].append(extra_Z)
+                aug_Z[1].append(extra_Z_cases)
+            else:
+                # Stack below the existing unused samples
+                aug_Z.append(extra_Z)
+
+        aug_dset[state].append(aug_Z)
+
+    return aug_dset
+
+
+def split_dset(dset, train_size=0.7, validation_size=0.2):
     """Split dataset into train/validate/test partitions per state.
 
     Args:
@@ -214,15 +351,6 @@ def split_dset(dset, train_size=0.7, validation_size=0.2, random=True,
         validation_size:    A float representing the percentage of samples
                                 used for validation.
                                 Default = 0.2
-        random:             A boolean to indicate to randomly shuffle the
-                                samples or not.
-                                Default = True
-        normalize:          A boolean to indicate to normalize the features
-                                or not.
-                                Default = False
-        for_tf:             A boolean to indicate whether the dataset will be
-                                used by tensorflow models or not.
-                                Default = False
 
     Returns:
         split:              A dictionary representing the sliced dataset.
@@ -233,20 +361,11 @@ def split_dset(dset, train_size=0.7, validation_size=0.2, random=True,
     split = {state: {} for state in dset.keys()}
 
     for state in dset.keys():
-
-        # Unpack the number of samples, features, corresponding labels,
-        # and unobserved samples
-        num_samples = len(dset[state][0])
-        X, y, Z = dset[state][0], dset[state][1], dset[state][2]
-
-        if random:
-            # Perform a random shuffle of the observed samples
-            lst_of_idx = np.random.choice([i for i in range(num_samples)],
-                                          size=num_samples, replace=False)
-
-            X, y = dset[state][0][lst_of_idx], dset[state][1][lst_of_idx]
+        # Unpack features, corresponding labels, and unobserved samples
+        X, y, Z = dset[state]
 
         # Find the indices to slice the dataset
+        num_samples = len(dset[state][0])
         num_train = int(train_size * num_samples)
         num_val = int(validation_size * num_samples)
         end_idx_val = num_train + num_val
@@ -256,63 +375,73 @@ def split_dset(dset, train_size=0.7, validation_size=0.2, random=True,
         val_X, val_y = X[num_train: end_idx_val], y[num_train: end_idx_val]
         test_X, test_y = X[end_idx_val:], y[end_idx_val:]
 
-        if normalize:
-            # Normalize with the mean and standard deviation of the training
-            # features if necessary
-            train_X_mean = np.mean(train_X)
-            train_X_std = np.std(train_X)
-
-            train_X = (train_X - train_X_mean) / train_X_std
-            val_X = (val_X - train_X_mean) / train_X_std
-            test_X = (test_X - train_X_mean) / train_X_std
-            Z = (Z - train_X_mean) / train_X_std
-
-        # Update the output dataset dictionary with model specification
-        if for_tf:
-            split[state] = {
-                'train': convert_to_tensor(train_X, train_y),
-                'validate': convert_to_tensor(val_X, val_y),
-                'test': convert_to_tensor(test_X, test_y),
-                'unused': convert_to_tensor(Z)
-            }
-        else:
-            split[state] = {
-                'train': [train_X, train_y],
-                'validate': [val_X, val_y],
-                'test': [test_X, test_y],
-                'unused': [Z]
-            }
-
+        # Update the output dataset dictionary
+        split[state] = {
+            'train': convert_to_tensor(train_X, train_y),
+            'validate': convert_to_tensor(val_X, val_y),
+            'test': convert_to_tensor(test_X, test_y),
+            'unused': [Z]
+        }
+    
     return split
 
 
-def generate_dset(dst, interval, offset=0, tensor=False):
+def generate_dset_LSTM(lag, num_extra_states=0, case_offset=0, death_offset=0,
+                       aug_offset=0):
     """High level dataset generation function."""
 
-    dset = read_dataset(dst)
+    # Indicate csv destinations
+    cases_dst = os.getcwd() + '/data/CONVENIENT_us_confirmed_cases.csv'
+    deaths_dst = os.getcwd() + '/data/CONVENIENT_us_deaths.csv'
 
-    time_dset = convert_to_time_series(dset, interval, offset, rescale=1000)
+    # Unpack the raw cases and deaths datasets
+    cases_dset = read_dataset(cases_dst)
+    deaths_dset = read_dataset(deaths_dst)
 
-    split = split_dset(time_dset, for_tf=tensor)
+    time_cases = convert_to_time_series(cases_dset, lag)
+    time_deaths = convert_to_time_series(deaths_dset, lag)
 
-    return split
+    cases = split_dset(augment_dset(
+        time_cases,
+        offset=case_offset,
+        num_extra_states=num_extra_states
+    ))
+
+    deaths = split_dset(augment_dset(
+        time_deaths,
+        offset=death_offset,
+        num_extra_states=num_extra_states,
+        extra_cases=time_cases,
+        aug_offset=aug_offset
+    ))
+
+    return cases, deaths
+
+# TODO
+#  1) Pickle the dataset
+#  2) PREDICTION USE DATASET FUNCTION
 
 
 if __name__ == '__main__':
 
-    # Load and generate two datasets
-    case_dst = os.getcwd() + '/data/CONVENIENT_us_confirmed_cases.csv'
-    tf_dset = generate_dset(case_dst, 5, tensor=True)
-    dset = generate_dset(case_dst, 5)
+    # cases, deaths = generate_dset_ARIMAX(num_extra_states=5)
 
-    # Sanity checks
-    print(dset['Alabama']['train'][0].shape)    # (210, 5)
+    cases_lstm, deaths_lstm = generate_dset_LSTM(7, 5, 4, 4)
 
-    for ft, val in tf_dset['Alabama']['train'].take(1):
-        print(ft.shape)     # (10, 5)
+    for ft, val in cases_lstm['Alabama']['train'].take(1):
+        print(ft.shape)
+        print(val.shape)
+        print()
 
-    # This should be:
-    # (TensorSpec(shape=(None, 5), dtype=tf.float64, name=None),
-    #  TensorSpec(shape=(None,), dtype=tf.float64, name=None))
-    print(tf_dset['Alabama']['train'].element_spec)
+    for ft, val in deaths_lstm['Alabama']['train'].take(1):
+        print(ft.shape)
+        print(val.shape)
+
+    # Output should be (with batch_size = 10, extra_states = 5, lag = 7):
+    # (10, 6, 7)
+    # (10,)
+    #
+    # (10, 2, 6, 7)
+    # (10,)
+
 
