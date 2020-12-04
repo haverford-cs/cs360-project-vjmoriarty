@@ -1,4 +1,4 @@
-# COVID-19 Forecast: An ARIMAX/ConvLSTM Comparison "Study"
+## COVID-19 Forecast: An ARIMAX/ConvLSTM Comparison "Study"
 
 ## Table of Contents
   * [Project Introduction](#project-introduction)
