@@ -27,7 +27,7 @@
 - Added function to split dataset into train/validate/test partitions by state
 - Added high level aggregate dataset processing function
 
-### 12/03/2020 - 4 hrs
+### 12/03/2020 - 6 hrs
 - Extracted and processed more state-related information for dataset
  construction. 
 - Reconstruct data processing pipeline (RIP). ARIMA and LSTM are now taking
