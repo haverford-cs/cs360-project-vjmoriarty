@@ -30,20 +30,9 @@ class LSTM(Model):
         self.p1 = MaxPooling3D(pool_size=(1, 2, 2))
         self.drop1 = Dropout(0.2)
 
-        self.lstm3 = ConvLSTM2D(
-            64, (2, 3), activation='relu', return_sequences=True
-        )
-
-        self.lstm4 = ConvLSTM2D(
-            64, (2, 3), activation='relu', return_sequences=True
-        )
-
-        self.p2 = MaxPooling3D(pool_size=(1, 2, 2))
-        self.drop2 = Dropout(0.2)
-
         self.f = Flatten()
         self.d1 = Dense(10)
-        self.drop3 = Dropout(0.2)
+        self.drop2 = Dropout(0.2)
         self.d2 = Dense(1)
 
     def call(self, inputs):
@@ -52,15 +41,10 @@ class LSTM(Model):
         p1 = self.p1(x2)
         dp1 = self.drop1(p1)
 
-        x3 = self.lstm3(dp1)
-        x4 = self.lstm4(x3)
-        p2 = self.p2(x4)
-        dp2 = self.drop2(p2)
-
-        f = self.f(dp2)
+        f = self.f(dp1)
         d1 = self.d1(f)
-        dp3 = self.drop3(d1)
-        output = self.d2(dp3)
+        dp2 = self.drop2(d1)
+        output = self.d2(dp2)
 
         return output
 
