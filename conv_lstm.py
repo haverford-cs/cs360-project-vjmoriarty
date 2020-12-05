@@ -24,7 +24,7 @@ class LSTM(Model):
         self.lstm2 = ConvLSTM2D(
             32, (2, 3), activation='relu', return_sequences=True
         )
-        self.p1 = MaxPooling3D()
+        self.p1 = MaxPooling3D(pool_size=(1, 2, 2))
         self.drop1 = Dropout(0.2)
 
         self.lstm3 = ConvLSTM2D(
@@ -33,7 +33,7 @@ class LSTM(Model):
         self.lstm4 = ConvLSTM2D(
             64, (2, 3), activation='relu', return_sequences=True
         )
-        self.p2 = MaxPooling3D()
+        self.p2 = MaxPooling3D(pool_size=(1, 2, 2))
         self.drop2 = Dropout(0.2)
 
         self.lstm5 = ConvLSTM2D(
@@ -42,7 +42,7 @@ class LSTM(Model):
         self.lstm6 = ConvLSTM2D(
             128, (1, 3), activation='relu'
         )
-        self.p3 = MaxPooling3D()
+        self.p3 = MaxPooling3D(pool_size=(1, 2, 2))
         self.drop3 = Dropout(0.2)
 
         self.f = Flatten()
