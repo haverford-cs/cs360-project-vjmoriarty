@@ -149,11 +149,6 @@ def generate_dset_ARIMAX(rescale=1000, num_extra_states=0, agg_cases=True,
 
 
 # For LSTM
-# TODO:
-#  1) convert to time series
-#  2) augment the data with cases number if needed
-#  3) split data into train validate test, no randomize!!!
-#  4)
 def convert_to_tensor(features, labels, batch_size=10):
     """Generate dataset with mini batches
 
@@ -223,17 +218,6 @@ def convert_to_time_series(dset, lag, rescale=1000):
 
 def augment_dset(dset, offset=0, num_extra_states=0, extra_cases=None,
                  aug_offset=0):
-    # For each state in dset, find the nearest n states, features
-    #  sliced by [: -offset]
-    #  each fragments [
-    #  [state cases], [other state cases]
-    #  ] 
-    #  or
-    #  [
-    #   [[state cases], [other state cases]],
-    #   [[state deaths], [other state deaths]]
-    #  ]
-
     """TODO DOCUMENTATION"""
     
     # Make sure cases offset is not larger than death offset to prevent index
@@ -271,12 +255,14 @@ def augment_dset(dset, offset=0, num_extra_states=0, extra_cases=None,
             # With augmentation
             if extra_cases:
                 # Find the case number fragment with the augmentation offset
-                cases_frag = extra_cases[state][0][i + offset_diff]
+                case_loc = i + offset_diff
+                cases_frag = extra_cases[state][0][case_loc]
                 # Rebuild fragment into a 2-channel (3D) fragment
-                aug_frag = [[frag], [cases_frag]]
+                cubical = [[i, c_i] for i, c_i in list(zip(frag, cases_frag))]
+                aug_frag.append(cubical)
             else:
-                # Copy the original fragment
-                aug_frag.append(frag)
+                # Copy and transform the original fragment into 1-channel
+                aug_frag.append([[i] for i in frag])
 
             # Add nearest states' numbers to each fragment as well
             for extra_state in extra_states:
@@ -288,11 +274,14 @@ def augment_dset(dset, offset=0, num_extra_states=0, extra_cases=None,
                     # corresponding part of the augmented fragment
                     case_loc = i + offset_diff
                     extra_X_frag_cases = extra_cases[extra_state][0][case_loc]
-                    aug_frag[0].append(extra_X_frag)
-                    aug_frag[1].append(extra_X_frag_cases)
+                    add_cubical = [
+                        [i, c_i] for i, c_i in list(zip(extra_X_frag,
+                                                        extra_X_frag_cases))
+                    ]
+                    aug_frag.append(add_cubical)
                 else:
-                    # Copy and stack below the existing list of numbers
-                    aug_frag.append(extra_X_frag)
+                    # Copy and stack below the existing data
+                    aug_frag.append([[i] for i in extra_X_frag])
             
             aug_X.append(aug_frag)
 
@@ -311,14 +300,15 @@ def augment_dset(dset, offset=0, num_extra_states=0, extra_cases=None,
         # With augmentation
         if extra_cases:
             # Rebuild into a 2-channel (3D) array
-            cases_Z = extra_cases[state][2]
-            aug_Z = [
-                [Z[start_idx:]],
-                [cases_Z[cases_start_idx:]]
+            cases_Z = extra_cases[state][2][cases_start_idx:]
+            cubical = [
+                [i, c_i] for i, c_i in list(zip(Z[start_idx:],
+                                                cases_Z))
             ]
+            aug_Z.append(cubical)
         else:
-            # Copy the unused data
-            aug_Z.append(Z[start_idx:])
+            # Copy the unused data with 1-channel configuration
+            aug_Z.append([[i] for i in Z[start_idx:]])
 
         # Augment the data with other states' numbers
         for extra_state in extra_states:
@@ -327,11 +317,13 @@ def augment_dset(dset, offset=0, num_extra_states=0, extra_cases=None,
                 # Append the death and case numbers to the
                 # corresponding part of the augmented array
                 extra_Z_cases = extra_cases[extra_state][2][cases_start_idx:]
-                aug_Z[0].append(extra_Z)
-                aug_Z[1].append(extra_Z_cases)
+                add_cubical = [
+                    [i, c_i] for i, c_i in list(zip(extra_Z, extra_Z_cases))
+                ]
+                aug_Z.append(add_cubical)
             else:
                 # Stack below the existing unused samples
-                aug_Z.append(extra_Z)
+                aug_Z.append([[i] for i in extra_Z])
 
         aug_dset[state].append(aug_Z)
 
@@ -438,10 +430,10 @@ if __name__ == '__main__':
         print(val.shape)
 
     # Output should be (with batch_size = 10, extra_states = 5, lag = 7):
-    # (10, 6, 7)
+    # (10, 6, 7, 1)
     # (10,)
     #
-    # (10, 2, 6, 7)
+    # (10, 6, 7, 2)
     # (10,)
 
 
