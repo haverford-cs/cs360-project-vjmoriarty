@@ -159,12 +159,7 @@ def convert_to_tensor(features, labels, batch_size=10):
                             Default = 10
 
     Returns:
-        dset:           The desired dataset with mini batches. Each batch is in
-                            the form of: (featurcases[state] = {
-            'train': cases_df[: num_train],
-            'validate': cases_df[num_train: end_idx_val],
-            'test': cases_df[end_idx_val:]
-        }es, labels).
+        dset:           The desired dataset with mini batches.
     """
 
     dset = tf.data.Dataset.from_tensor_slices((features, labels))
@@ -249,7 +244,9 @@ def augment_dset(dset, offset=0, num_extra_states=0, extra_cases=None,
         # Reconstruct features with offset and augmentation with case numbers
         aug_X = []
 
-        for i, frag in enumerate(X[: -offset]):
+        end_idx = X.shape[0] - offset
+
+        for i, frag in enumerate(X[: end_idx]):
             aug_frag = []
 
             # With augmentation
@@ -420,7 +417,7 @@ if __name__ == '__main__':
 
     cases_lstm, deaths_lstm = generate_dset_LSTM(7, 5, 4, 4)
 
-    for ft, val in cases_lstm['Alabama']['train'].take(1):
+    for ft, val in cases_lstm['Alabama']['test'].take(1):
         print(ft.shape)
         print(val.shape)
         print()
