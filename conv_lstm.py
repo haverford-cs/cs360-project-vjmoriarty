@@ -18,18 +18,30 @@ class LSTM(Model):
     def __init__(self):
         super(LSTM, self).__init__()
 
-        self.lstm1 = ConvLSTM2D(32, (2, 3), activation='relu')
-        self.lstm2 = ConvLSTM2D(32, (2, 3), activation='relu')
+        self.lstm1 = ConvLSTM2D(
+            32, (2, 3), activation='relu', return_sequences=True
+        )
+        self.lstm2 = ConvLSTM2D(
+            32, (2, 3), activation='relu', return_sequences=True
+        )
         self.p1 = MaxPooling2D()
         self.drop1 = Dropout(0.2)
 
-        self.lstm3 = ConvLSTM2D(64, (2, 3), activation='relu')
-        self.lstm4 = ConvLSTM2D(64, (2, 3), activation='relu')
+        self.lstm3 = ConvLSTM2D(
+            64, (2, 3), activation='relu', return_sequences=True
+        )
+        self.lstm4 = ConvLSTM2D(
+            64, (2, 3), activation='relu', return_sequences=True
+        )
         self.p2 = MaxPooling2D()
         self.drop2 = Dropout(0.2)
 
-        self.lstm5 = ConvLSTM2D(128, (1, 3), activation='relu')
-        self.lstm6 = ConvLSTM2D(128, (1, 3), activation='relu')
+        self.lstm5 = ConvLSTM2D(
+            128, (1, 3), activation='relu', return_sequences=True
+        )
+        self.lstm6 = ConvLSTM2D(
+            128, (1, 3), activation='relu'
+        )
         self.p3 = MaxPooling2D()
         self.drop3 = Dropout(0.2)
 
