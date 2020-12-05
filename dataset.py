@@ -282,10 +282,15 @@ def augment_dset(dset, offset=0, num_extra_states=0, extra_cases=None,
             
             aug_X.append(aug_frag)
 
+        # Reshape X to fit the LSTM input dimensions
+        aug_X = np.array(aug_X)
+        num_samples, num_states, lag, channels = aug_X.shape
+        aug_X = aug_X.reshape(num_samples, 1, num_states, lag, channels)
+
         aug_dset[state].append(aug_X)
 
         # Store the labels considering prediction offset
-        aug_dset[state].append(y[offset:])
+        aug_dset[state].append(np.array(y[offset:]))
 
         # For unlabeled fragments
         aug_Z = []
@@ -322,7 +327,7 @@ def augment_dset(dset, offset=0, num_extra_states=0, extra_cases=None,
                 # Stack below the existing unused samples
                 aug_Z.append([[i] for i in extra_Z])
 
-        aug_dset[state].append(aug_Z)
+        aug_dset[state].append(np.array(aug_Z))
 
     return aug_dset
 
@@ -354,7 +359,7 @@ def split_dset(dset, train_size=0.7, validation_size=0.2):
         X, y, Z = dset[state]
 
         # Find the indices to slice the dataset
-        num_samples = len(dset[state][0])
+        num_samples = X.shape[0]
         num_train = int(train_size * num_samples)
         num_val = int(validation_size * num_samples)
         end_idx_val = num_train + num_val
@@ -369,7 +374,7 @@ def split_dset(dset, train_size=0.7, validation_size=0.2):
             'train': convert_to_tensor(train_X, train_y),
             'validate': convert_to_tensor(val_X, val_y),
             'test': convert_to_tensor(test_X, test_y),
-            'unused': [Z]
+            'unused': Z
         }
     
     return split
@@ -408,7 +413,7 @@ def generate_dset_LSTM(lag, num_extra_states=0, case_offset=0, death_offset=0,
 
 # TODO
 #  1) Pickle the dataset
-#  2) PREDICTION USE DATASET FUNCTION
+#  2) PREDICTION USE DATASET FUNCTION: REMEMBER TO RESHAPE EACH Z
 
 
 if __name__ == '__main__':
@@ -418,8 +423,7 @@ if __name__ == '__main__':
     cases_lstm, deaths_lstm = generate_dset_LSTM(7, 5, 4, 4)
 
     for ft, val in cases_lstm['Alabama']['test'].take(1):
-        print(ft.shape)
-        print(val.shape)
+        print(tf.reshape(ft, [10, 1, 6, 7, 1]).shape)
         print()
 
     for ft, val in deaths_lstm['Alabama']['train'].take(1):
@@ -427,10 +431,10 @@ if __name__ == '__main__':
         print(val.shape)
 
     # Output should be (with batch_size = 10, extra_states = 5, lag = 7):
-    # (10, 6, 7, 1)
+    # (10, 1, 6, 7, 1)
     # (10,)
     #
-    # (10, 6, 7, 2)
+    # (10, 1, 6, 7, 2)
     # (10,)
 
 
