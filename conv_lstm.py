@@ -4,6 +4,8 @@ Authors: Vincent Yu
 Date: 12/01/2020
 """
 
+import numpy as np
+
 from tensorflow.keras import Model
 from tensorflow.keras.layers import Flatten, Dense, ConvLSTM2D, Dropout, \
     MaxPooling3D
@@ -19,51 +21,46 @@ class LSTM(Model):
         super(LSTM, self).__init__()
 
         self.lstm1 = ConvLSTM2D(
-            32, 3, activation='relu', return_sequences=True
+            32, (2, 3), activation='relu', return_sequences=True
         )
         self.lstm2 = ConvLSTM2D(
-            32, 3, activation='relu', return_sequences=True
+            32, (2, 3), activation='relu', return_sequences=True
         )
+
         self.p1 = MaxPooling3D(pool_size=(1, 2, 2))
+        self.drop1 = Dropout(0.2)
 
         self.lstm3 = ConvLSTM2D(
-            64, 3, activation='relu', return_sequences=True
+            64, (2, 3), activation='relu', return_sequences=True
         )
-        self.lstm4 = ConvLSTM2D(
-            64, 3, activation='relu', return_sequences=True
-        )
-        self.p2 = MaxPooling3D(pool_size=(1, 2, 2))
 
-        self.lstm5 = ConvLSTM2D(
-            128, 3, activation='relu', return_sequences=True
+        self.lstm4 = ConvLSTM2D(
+            64, (2, 3), activation='relu', return_sequences=True
         )
-        self.lstm6 = ConvLSTM2D(
-            128, 3, activation='relu'
-        )
-        self.p3 = MaxPooling3D(pool_size=(1, 2, 2))
+
+        self.p2 = MaxPooling3D(pool_size=(1, 2, 2))
+        self.drop2 = Dropout(0.2)
 
         self.f = Flatten()
         self.d1 = Dense(10)
-        self.drop1 = Dropout(0.2)
+        self.drop3 = Dropout(0.2)
         self.d2 = Dense(1)
 
     def call(self, inputs):
         x1 = self.lstm1(inputs)
         x2 = self.lstm2(x1)
         p1 = self.p1(x2)
-        
-        x3 = self.lstm3(p1)
+        dp1 = self.drop1(p1)
+
+        x3 = self.lstm3(dp1)
         x4 = self.lstm4(x3)
         p2 = self.p2(x4)
+        dp2 = self.drop2(p2)
 
-        x5 = self.lstm5(p2)
-        x6 = self.lstm6(x5)
-        p3 = self.p3(x6)
-
-        f = self.f(p3)
+        f = self.f(dp2)
         d1 = self.d1(f)
-        dp1 = self.drop1(d1)
-        output = self.d2(dp1)
+        dp3 = self.drop3(d1)
+        output = self.d2(dp3)
 
         return output
 
@@ -119,6 +116,27 @@ def run_lstm(train_dset, val_dset, epochs=50, verbose=False):
     return history.history
 
 
+def lstm_test():
+    """Test function to make sure the dimensions are working"""
+
+    # Create an instance of the model
+    model = LSTM()
+
+    # Try out both the options below (all zeros and random)
+    # shape is: number of examples (mini-batch size), width, height, depth
+    x_np = np.zeros((10, 1, 10, 13, 2))
+    # x_np = np.random.rand(64, 32, 32, 3)
+
+    # call the model on this input and print the result
+    output = model.call(x_np)
+    print(output)
+
+    # Look at the model parameter shapes
+    for v in model.trainable_variables:
+        print("Variable:", v.name)
+        print("Shape:", v.shape)
+
+
 if __name__ == '__main__':
 
     cases, deaths = generate_dset_LSTM(13, num_extra_states=4)
@@ -126,3 +144,4 @@ if __name__ == '__main__':
     train, val = cases['Alabama']['train'], deaths['Alabama']['validate']
 
     _ = run_lstm(train, val)
+
