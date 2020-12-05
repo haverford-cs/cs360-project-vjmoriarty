@@ -15,10 +15,14 @@ from dataset import generate_dset_LSTM
 
 class LSTM(Model):
 
-    def __init__(self):
+    def __init__(self, num_states, lags, channels):
         super(LSTM, self).__init__()
 
-        self.lstm1 = ConvLSTM2D(32, (2, 3), activation='relu')
+        self.lstm1 = ConvLSTM2D(
+            32, (2, 3),
+            activation='relu',
+            Input_shape=(num_states, lags, channels)
+        )
         self.lstm2 = ConvLSTM2D(32, (2, 3), activation='relu')
         self.p1 = MaxPooling2D()
         self.drop1 = Dropout(0.2)
@@ -62,10 +66,11 @@ class LSTM(Model):
         return output
 
 
-def run_lstm(train_dset, val_dset, epochs=50, verbose=False):
+def run_lstm(num_states, lags, channels, train_dset, val_dset, epochs=50,
+             verbose=False):
 
     # Declare model
-    model = LSTM()
+    model = LSTM(num_states, lags, channels)
 
     # Model configuration
     model.compile(
@@ -117,6 +122,8 @@ if __name__ == '__main__':
 
     cases, deaths = generate_dset_LSTM(13, num_extra_states=4)
 
+    num_states, lags, channels = 5, 13, 1
+
     train, val = cases['Alabama']['train'], deaths['Alabama']['validate']
 
-    _ = run_lstm(train, val)
+    _ = run_lstm(num_states, lags, channels, train, val)
