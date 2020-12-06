@@ -6,8 +6,8 @@
   * [Lab Notebook](#lab-notebook)
      * [11/28/2020](#11282020---2-hrs)
      * [12/01/2020](#12012020---2-hrs)
-     * [12/03/2020](#12032020---4-hrs)
-
+     * [12/03/2020](#12032020---6-hrs)
+     * [12/05/2020](#12052020---6-hrs)
 
 ## Project Introduction
 
@@ -36,6 +36,13 @@
  variables, and added cases number for death predictions.
 - Formalized pipeline: ARIMA vs. ConvLSTM per state, may use ensemble if the
  differences in predictions are not crazily large.
-- TODO: build the actual models and design fine tuning pipeline for LSTM.
+
+### 12/05/2020 - 6 hrs
+- Fixed dataset problem with LSTM. 5-D data structure.
+- Built a temporary LSTM architecture, tested with sample data
+- Added basic ARIMAX training steps. 
+- TODO: Architecture search and hyper-parameter tuning for LSTM
+- TODO: ARIMAX full pipeline
+- TODO: Prediction dataset and pipeline
 
 ### To be Continued...
