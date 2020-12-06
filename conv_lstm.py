@@ -1,5 +1,5 @@
 """
-Prediction machine learning models
+Conv-LSTM model
 Authors: Vincent Yu
 Date: 12/01/2020
 """
@@ -16,32 +16,34 @@ from dataset import generate_dset_LSTM
 
 
 class LSTM(Model):
-
+    """TODO DOCUMENTATION"""
     def __init__(self):
         super(LSTM, self).__init__()
 
         self.lstm1 = ConvLSTM2D(
             32, (2, 3), activation='relu', return_sequences=True
         )
-        self.lstm2 = ConvLSTM2D(
-            32, (2, 3), activation='relu', return_sequences=True
-        )
 
-        self.p1 = MaxPooling3D(pool_size=(1, 2, 2))
+        self.p1 = MaxPooling3D((1, 2, 2))
         self.drop1 = Dropout(0.2)
 
+        self.lstm2 = ConvLSTM2D(
+            64, (1, 3), activation='relu'
+        )
+
         self.f = Flatten()
-        self.d1 = Dense(10)
+        self.d1 = Dense(100)
         self.drop2 = Dropout(0.2)
         self.d2 = Dense(1)
 
     def call(self, inputs):
         x1 = self.lstm1(inputs)
-        x2 = self.lstm2(x1)
-        p1 = self.p1(x2)
+        p1 = self.p1(x1)
         dp1 = self.drop1(p1)
 
-        f = self.f(dp1)
+        x2 = self.lstm2(dp1)
+
+        f = self.f(x2)
         d1 = self.d1(f)
         dp2 = self.drop2(d1)
         output = self.d2(dp2)
@@ -49,7 +51,7 @@ class LSTM(Model):
         return output
 
 
-def run_lstm(train_dset, val_dset, epochs=50, verbose=False):
+def run_lstm(train_dset, val_dset, epochs=40, verbose=False):
 
     # Declare model
     model = LSTM()
@@ -57,8 +59,9 @@ def run_lstm(train_dset, val_dset, epochs=50, verbose=False):
     # Model configuration
     model.compile(
         optimizer='adam',
-        loss=losses.MeanSquaredLogarithmicError(),
+        loss=losses.MeanSquaredError(),
         metrics=[
+            metrics.RootMeanSquaredError(name='rmse'),
             metrics.MeanSquaredLogarithmicError(name='msle'),
             metrics.KLDivergence(name='kld')
                  ]
@@ -123,9 +126,10 @@ def lstm_test():
 
 if __name__ == '__main__':
 
-    cases, deaths = generate_dset_LSTM(13, num_extra_states=4)
+    cases, deaths = generate_dset_LSTM(14, num_extra_states=4)
 
-    train, val = cases['Alabama']['train'], deaths['Alabama']['validate']
+    train, val = deaths['California']['train'], \
+                 deaths['California']['validate']
 
     _ = run_lstm(train, val)
 
