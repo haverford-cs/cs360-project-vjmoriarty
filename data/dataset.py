@@ -426,7 +426,7 @@ if __name__ == '__main__':
         print(tf.reshape(ft, [10, 1, 6, 7, 1]).shape)
         print()
 
-    for ft, val in deaths_lstm['Alabama']['train'].take(1):
+    for ft, val in deaths_lstm['Alabama']['validate'].take(1):
         print(ft.shape)
         print(val.shape)
 

@@ -16,3 +16,7 @@ def correct_datetime(date):
             correct_date += (comp + '/')
 
     return correct_date[:-1]
+
+
+def test():
+    return 'Hey!'
