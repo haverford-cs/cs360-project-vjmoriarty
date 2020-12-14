@@ -1,8 +1,39 @@
 """
-Storage for model settings and parameter grids
+Storage for script settings and parameter grids
 Authors: Vincent Yu
 Date: 12/03/2020
 """
 
-params_ARIMA = {}
-params_LSTM = {}
+# GENERAL SETTINGS
+# Set to true to re-read the latest version of the dataset csv files
+update_dset = False
+
+# Set the rescale factor to inflate the dataset
+rescale = 1000
+
+# FINE TUNING RELATED
+# Set the random grid search status
+random = True
+random_size = 30
+
+# MODEL RELATED
+# Set ARIMAX fine tuning parameters
+params_ARIMAX = {
+    'num_extra_states': [i for i in range(7)],
+    'p': [i for i in range(15)],
+    'd': [i for i in range(5)],
+    'q': [i for i in range(5)]
+}
+
+# Set LSTM fine tuning parameters
+params_LSTM = {
+    'lag': [i for i in range(8, 15)],
+    'num_extra_states': [i for i in range(2, 7)],
+    'cases_offset': [i for i in range(5, 11)],
+    'deaths_offset': [i for i in range(4, 10)],
+    'aug_offset': [i for i in range(4, 10)]
+}
+
+# Some LSTM related hyper-parameters
+batch_size = 10
+epochs = 25
