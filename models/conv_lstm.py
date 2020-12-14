@@ -9,14 +9,12 @@ import numpy as np
 from tensorflow.keras import Model
 from tensorflow.keras.layers import Flatten, Dense, ConvLSTM2D, Dropout, \
     MaxPooling3D
-from tensorflow.keras import losses
-from tensorflow.keras import metrics
-
-from dataset import generate_dset_LSTM
+from tensorflow.keras import losses, metrics
 
 
 class LSTM(Model):
-    """TODO DOCUMENTATION"""
+    """ConvLSTM model with tentative structure"""
+
     def __init__(self):
         super(LSTM, self).__init__()
 
@@ -51,7 +49,7 @@ class LSTM(Model):
         return output
 
 
-def run_lstm(train_dset, val_dset, epochs=40, verbose=False):
+def run_lstm(train_dset, val_dset, epochs=40, verbose=0):
 
     # Declare model
     model = LSTM()
@@ -62,8 +60,7 @@ def run_lstm(train_dset, val_dset, epochs=40, verbose=False):
         loss=losses.MeanSquaredError(),
         metrics=[
             metrics.RootMeanSquaredError(name='rmse'),
-            metrics.MeanSquaredLogarithmicError(name='msle'),
-            metrics.KLDivergence(name='kld')
+            metrics.MeanSquaredLogarithmicError(name='msle')
                  ]
     )
 
@@ -71,32 +68,33 @@ def run_lstm(train_dset, val_dset, epochs=40, verbose=False):
     history = model.fit(
         train_dset,
         validation_data=val_dset,
-        epochs=epochs
+        epochs=epochs,
+        verbose=verbose
     )
 
     # Unpack losses and other metrics
     train_losses = history.history['loss']
     val_losses = history.history['val_loss']
 
+    train_rmse = history.history['rmse']
+    val_rmse = history.history['val_rmse']
+
     train_msle = history.history['msle']
-    val_msle = history.history['msle']
+    val_msle = history.history['val_msle']
 
-    train_kld = history.history['kld']
-    val_kld = history.history['kld']
+    if verbose != 0:
+        # Print each epoch's performance to terminal
+        template = 'Epoch {}, Loss: {}, RMSE: {}, MSLE: {}, Val Loss: {}, ' \
+                   'Val RMSE: {}, Val MSLE: {}'
 
-    # Print each epoch's performance to terminal
-    template = 'Epoch {}, Loss: {}, MSLE: {}, KLD: {}, Val Loss: {}, ' \
-               'Val MSLE: {}, Val KLD: {}'
-
-    if verbose:
         for i in range(epochs):
             print(template.format(i + 1,
                                   train_losses[i],
+                                  train_rmse[i] * 100,
                                   train_msle[i] * 100,
-                                  train_kld,
                                   val_losses[i],
+                                  val_rmse[i] * 100,
                                   val_msle[i] * 100,
-                                  val_kld
                                   )
                   )
 
@@ -111,12 +109,26 @@ def lstm_test():
 
     # Try out both the options below (all zeros and random)
     # shape is: number of examples (mini-batch size), width, height, depth
-    x_np = np.zeros((10, 1, 10, 13, 2))
-    # x_np = np.random.rand(64, 32, 32, 3)
+    x_np = np.random.rand(1, 1, 5, 8, 2)
+    y_np = np.random.rand(1)
 
     # call the model on this input and print the result
     output = model.call(x_np)
     print(output)
+
+    # Check the output of each layer (may not work)
+    model.compile(
+        optimizer='adam',
+        loss=losses.MeanSquaredError(),
+        metrics=[
+            metrics.RootMeanSquaredError(name='rmse'),
+            metrics.MeanSquaredLogarithmicError(name='msle')
+        ]
+    )
+    model.fit(x_np, y_np, epochs=1)
+    print()
+    print(model.summary())
+    print()
 
     # Look at the model parameter shapes
     for v in model.trainable_variables:
@@ -125,11 +137,5 @@ def lstm_test():
 
 
 if __name__ == '__main__':
-
-    cases, deaths = generate_dset_LSTM(14, num_extra_states=4)
-
-    train, val = deaths['California']['train'], \
-                 deaths['California']['validate']
-
-    _ = run_lstm(train, val)
+    lstm_test()
 
