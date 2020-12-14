@@ -7,8 +7,7 @@ Date: 12/01/2020
 import numpy as np
 
 from tensorflow.keras import Model
-from tensorflow.keras.layers import Flatten, Dense, ConvLSTM2D, Dropout, \
-    MaxPooling3D
+from tensorflow.keras.layers import Flatten, Dense, ConvLSTM2D, Dropout
 from tensorflow.keras import losses, metrics
 
 
@@ -22,7 +21,6 @@ class LSTM(Model):
             32, (2, 3), activation='relu', return_sequences=True
         )
 
-        self.p1 = MaxPooling3D((1, 2, 2))
         self.drop1 = Dropout(0.2)
 
         self.lstm2 = ConvLSTM2D(
@@ -36,8 +34,7 @@ class LSTM(Model):
 
     def call(self, inputs):
         x1 = self.lstm1(inputs)
-        p1 = self.p1(x1)
-        dp1 = self.drop1(p1)
+        dp1 = self.drop1(x1)
 
         x2 = self.lstm2(dp1)
 
