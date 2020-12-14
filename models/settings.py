@@ -14,7 +14,7 @@ rescale = 1000
 # FINE TUNING RELATED
 # Set the random grid search status
 random = True
-random_size = 30
+random_size = 50
 
 # MODEL RELATED
 # Set ARIMAX fine tuning parameters
