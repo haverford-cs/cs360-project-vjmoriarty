@@ -7,6 +7,7 @@ Date: 12/13/2020
 # Python imports
 import os
 import pickle
+import time
 
 # Package imports
 import numpy as np
@@ -83,6 +84,37 @@ def fine_tune_LSTM(random=True, random_size=30):
     # Declare common string format to make combination hashable
     template = '{}, {}, {}, {}, {}'
 
+    # Estimate the total time needed for fine tuning
+    start_time = time.time()
+
+    random_combo = param_combos[0]
+    cases, deaths = generate_dset_LSTM(**random_combo)
+
+    # Train and validate the model on case numbers first
+    cases_train, cases_val = cases['Alabama']['train'], \
+                             cases['Alabama']['validate']
+
+    _ = run_lstm(cases_train, cases_val, epochs=epochs, verbose=0)
+
+    # Train and validate the model on deaths numbers next
+    deaths_train, deaths_val = deaths['Alabama']['train'], \
+                               deaths['Alabama']['validate']
+
+    _ = run_lstm(deaths_train, deaths_val, epochs=epochs, verbose=0)
+
+    end_time = time.time()
+
+    # Format the total time needed
+    time_diff = (end_time - start_time) * 51 * len(param_combos)
+
+    hrs = int(time_diff / 3600)
+    mins = int((time_diff - 3600 * hrs) / 60)
+    secs = int((time_diff - 3600 * hrs - 60 * mins))
+
+    print(f'Total amount of time needed: {hrs} hrs {mins} minutes {secs} '
+          f'seconds.')
+
+    # Begin fine tuning
     for i, combo in enumerate(param_combos):
 
         print(f'Trying Combination No.{i + 1}')
