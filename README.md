@@ -8,6 +8,7 @@
      * [12/01/2020](#12012020---2-hrs)
      * [12/03/2020](#12032020---6-hrs)
      * [12/05/2020](#12052020---6-hrs)
+     * [12/13/2020](#12132020---9-hrs)
 
 ## Project Introduction
 
@@ -44,5 +45,30 @@
 - TODO: Architecture search and hyper-parameter tuning for LSTM
 - TODO: ARIMAX full pipeline
 - TODO: Prediction dataset and pipeline
+
+### 12/13/2020 - 9 hrs
+- Formalized model pipeline: 
+    - Gather COVID data through local csv files
+    - Convert dataset to time series format for both models
+    - Fine tune both models and save the models through pickle
+    - Run predictions through the better model by first unpack from pickle
+     and then run predict
+    - Pipelines above should be executed through two types of bash files
+    : ```fine_tune.sh``` and ```run_prediction.sh```
+- Established folder structure:
+    - data: contains csv files, pickled dataset for models, info.py and dataset.py
+    - models: contains ARIMAX and LSTM scripts, setting.py, and subfolder with
+     pickled model parameters.
+    - results: contains jupyter notebook, graphs, etc.
+    - utils: utils.py, helper functions
+- Added data cutoff and different offset settings for augmented deaths dataset.
+- Completed LSTM fine tuning related scripts
+    - NOTE: can't do architecture search within the time limit. Grid and
+     architecture must change simultaneously.
+- Fine tuning on lab machines. Fingers crossed.
+- TODO: ARIMAX train, validate, fine tuning.
+- TODO: Run test data on both models
+- TODO: Run future predictions for LSTM
+
 
 ### To be Continued...
