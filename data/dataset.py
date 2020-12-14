@@ -5,21 +5,35 @@ Date: 11/28/2020
 """
 
 import os
+import pickle
 
 import numpy as np
 import pandas as pd
 import tensorflow as tf
 
-from info import population_by_state, nearest_states
-from utils import correct_datetime
+from data.info import population_by_state, nearest_states
+from models.settings import update_dset
+from utils.utils import correct_datetime
+
+# COVID data csv paths
+csv_paths = {
+    'cases': os.getcwd() + '/data/CONVENIENT_us_confirmed_cases.csv',
+    'deaths': os.getcwd() + '/data/CONVENIENT_us_deaths.csv'
+}
 
 
-def read_dataset(dst):
+def read_dataset(dset_name='cases', cutoff='03/01/20', update=False):
     """Read the John Hopkins data and convert to desired format
 
     Args:
-        dst:        A string, indicating the location of the csv file.
-
+        dset_name:  A string representing whether this is the cases dset or
+                        the deaths number dset.
+                        Default = 'cases'
+        cutoff:     A string representing the first date of the dataset,
+                        cutting off all prior numbers.
+                        Default = '03/01/20'
+        update:     A boolean indicating whether the raw pkl files should be
+                        updated or not.
 
     Returns:
         dset:       A dictionary that contains the dataset.
@@ -27,57 +41,95 @@ def read_dataset(dst):
                         {state name --> [daily numbers], 'dates': [dates]}
     """
 
-    # Read and transpose the dataset
-    df = pd.read_csv(dst, index_col=0, header=None, low_memory=False).T
+    # Indicate pickled dataset's path
+    dset_dst = os.getcwd() + '/data/{}_raw.pkl'.format(dset_name)
 
-    # Rename the state column
-    df = df.rename(columns={'Province_State': 'state'})
+    if os.path.exists(dset_dst) and not update:
+        # Unpickle the existing pickle dataset
+        with open(dset_dst, 'rb') as f:
+            dset = pickle.load(f)
+    else:
+        # Read and transpose the dataset
+        dst = csv_paths[dset_name]
+        df = pd.read_csv(dst, index_col=0, header=None, low_memory=False).T
 
-    # Drop counties
-    if 'Admin2' in df.columns:
-        df = df.drop(columns=['Admin2'])
+        # Rename the state column
+        df = df.rename(columns={'Province_State': 'state'})
 
-    # Identify different columns
-    state_col = ['state']
-    date_cols = [col for col in df.columns if col not in state_col]
+        # Drop counties
+        if 'Admin2' in df.columns:
+            df = df.drop(columns=['Admin2'])
 
-    # Convert data types for entries
-    df[[col for col in date_cols]] = df[[col for col in date_cols]].astype(
-        str).astype('float').astype(int)
+        # Identify different columns
+        state_col = ['state']
+        date_cols = [col for col in df.columns if col not in state_col]
 
-    # Aggregate by state and clean up
-    df = df.groupby(state_col, as_index=False).agg('sum').reset_index()
-    df = df.drop(columns=['index'])
-    df = df.set_index('state')
+        # Convert data types for entries
+        df[[col for col in date_cols]] = df[[col for col in date_cols]].astype(
+            str).astype('float').astype(int)
 
-    # Convert to dictionary with states as keys and list of daily cases as value
-    dset = df.to_dict('index')
-    dates = [date for date in dset['Alabama'].keys()]
-    for state in dset.keys():
-        daily_cases = [val for key, val in dset[state].items()]
-        dset[state] = daily_cases
+        # Aggregate by state and clean up
+        df = df.groupby(state_col, as_index=False).agg('sum').reset_index()
+        df = df.drop(columns=['index'])
+        df = df.set_index('state')
 
-    # Keep the dates in the dataset
-    dset['dates'] = dates
+        # Convert to dictionary with states as keys and list of daily cases
+        # as values without the data prior to the cutoff date
+        dset = df.to_dict('index')
+        dates = [correct_datetime(date) for date in dset['Alabama'].keys()]
+        cutoff_idx = dates.index(cutoff)
+
+        for state in dset.keys():
+            daily_num = [val for key, val in dset[state].items()]
+            dset[state] = daily_num[cutoff_idx:]
+
+        # Keep the dates in the dataset
+        dset['dates'] = dates[cutoff_idx:]
+
+        # Pickle the dataset dictionary for later manipulation
+        with open(dset_dst, 'wb') as f:
+            pickle.dump(dset, f)
 
     return dset
 
 
 # For ARIMAX
-def generate_dset_ARIMAX(rescale=1000, num_extra_states=0, agg_cases=True,
+def generate_dset_ARIMAX(rescale=1000, num_extra_states=0, aug_cases=True,
                          train_size=0.7, validation_size=0.2):
-    """TODO DOCUMENTATION"""
-    
-    # Indicate csv destinations
-    cases_dst = os.getcwd() + '/data/CONVENIENT_us_confirmed_cases.csv'
-    deaths_dst = os.getcwd() + '/data/CONVENIENT_us_deaths.csv'
+    """Generate ARIMAX cases and deaths dataframes for each state
+
+    Args:
+        rescale:            An integer representing the rescaling factor to
+                                inflate the normalized daily numbers.
+                                Default = 1000
+        num_extra_states:   An integer representing the number of extra
+                                states added for data augmentation.
+                                Default = 0
+        aug_cases:        A boolean representing if the death data is
+                                augmented with cases numbers as well.
+                                Default = True
+        train_size:         A float representing the percentage of data used
+                                for training.
+                                Default = 0.7
+        validation_size:    A float representing the percentage of data used
+                                for validation.
+                                Default = 0.2
+
+    Returns:
+        cases:              A dictionary representing the cases dataset for
+                                ARIMAX, with the format of:
+                                {state --> 'train'/'validate'/'test' --> df }
+        deaths:             A dictionary representing the deaths dataset for
+                                ARIMAX, with the format of:
+                                {state --> 'train'/'validate'/'test' --> df }
+    """
 
     # Unpack the raw cases and deaths datasets
-    cases_dset = read_dataset(cases_dst)
-    deaths_dset = read_dataset(deaths_dst)
+    cases_dset = read_dataset(dset_name='cases', update=update_dset)
+    deaths_dset = read_dataset(dset_name='deaths', update=update_dset)
 
     # Find the list of dates with format corrected
-    dates = [correct_datetime(date) for date in cases_dset['dates']]
+    dates = cases_dset['dates']
 
     # Initialize temporary and final data dictionaries for ARIMAX
     cases, deaths = {}, {}
@@ -102,7 +154,7 @@ def generate_dset_ARIMAX(rescale=1000, num_extra_states=0, agg_cases=True,
         state_deaths = {'dates': dates, state: deaths_normalized[state]}
 
         # Use cases as explanatory variables for death predictions
-        if agg_cases:
+        if aug_cases:
             col_name = state + '_cases'
             state_deaths[col_name] = cases_normalized[state]
 
@@ -115,7 +167,7 @@ def generate_dset_ARIMAX(rescale=1000, num_extra_states=0, agg_cases=True,
                     state_cases[extra_state] = cases_normalized[extra_state]
                     state_deaths[extra_state] = deaths_normalized[extra_state]
 
-                    if agg_cases:
+                    if aug_cases:
                         col_name = extra_state + '_cases'
                         state_deaths[col_name] = cases_normalized[extra_state]
 
@@ -205,31 +257,57 @@ def convert_to_time_series(dset, lag, rescale=1000):
         labels = [daily_num[i] for i in range(lag, total_days)]
 
         # Convert the lists into numpy array before storage
-        X, y, Z = np.array(ft_vals), np.array(labels), np.array(daily_num)
-        time_dset[state] = [X, y, Z]
+        X, y = np.array(ft_vals), np.array(labels)
+        time_dset[state] = [X, y]
 
     return time_dset
 
 
-def augment_dset(dset, offset=0, num_extra_states=0, extra_cases=None,
-                 aug_offset=0):
-    """TODO DOCUMENTATION"""
-    
-    # Make sure cases offset is not larger than death offset to prevent index
-    # out of range issue
-    offset_diff = offset - aug_offset
-    if extra_cases and offset_diff < 0:
-        raise(Exception('Case offset exceeding death offset.'))
+def augment_dset(dset, offset=0, num_extra_states=0,
+                 aug_cases=True, extra_cases=None, aug_offset=0):
+    """Augment the dataset with offset and additional state numbers
+
+    Args:
+        dset:               A dictionary representing the original time
+                                series dataset. It has the format of:
+                                {state --> [X, y]}
+        offset:             An integer representing the offset number of days
+                                from the output number.
+                                Default = 0
+        num_extra_states:   An integer representing the number of extra
+                                states added for augmentation.
+                                Default = 0
+        aug_cases:          An boolean representing whether we are adding
+                                cases numbers for death augmentation or not.
+                                Default = True
+        extra_cases:        A dictionary representing the cases dataset with
+                                the same lag as <dset>. It has the format of:
+                                {state --> [X, y]}
+        aug_offset:         An integer representing the offset number of days
+                                from the output for added case numbers.
+                                Default = 0
+
+    Returns:
+        aug_dset:           A dictionary representing the augmented dataset.
+                                It has the format of:
+                                {state_name: [X, y]}
+    """
 
     # Make sure lag and offset are not too large to not have a proper dataset
-    lag = dset['Alabama'][0][0].shape[0]
-    num_samples = dset['Alabama'][1].shape[0]
-    num_days = dset['Alabama'][2].shape[0]
+    random_state = list(dset.keys())[0]
+    num_samples = dset[random_state][1].shape[0]
 
-    if num_samples <= offset or num_days < lag + offset + 3:
-        raise (Exception('Dataset too small. Please decrease the lag or the '
-                         'offset.'))
-    
+    # Find out the maximum number of samples the dataset can have
+    max_samples = num_samples - max(offset, aug_offset)
+
+    # Calculate where to truncate the dataset(s)
+    end_idx = num_samples - offset
+    start_idx = end_idx - max_samples
+
+    if aug_cases:
+        aug_end_idx = num_samples - aug_offset
+        aug_start_idx = aug_end_idx - max_samples
+
     # Initialize aggregated dataset
     aug_dset = {state: [] for state in dset.keys()}
     
@@ -238,22 +316,25 @@ def augment_dset(dset, offset=0, num_extra_states=0, extra_cases=None,
         # Find the nearest n states
         extra_states = nearest_states[state][:num_extra_states]
 
-        # Unpack features, labels, and unlabeled fragments
-        X, y, Z = dset[state]
+        # Unpack features and labels
+        X, y = dset[state]
 
         # Reconstruct features with offset and augmentation with case numbers
         aug_X = []
 
-        end_idx = X.shape[0] - offset
+        # Truncate dataset(s)
+        X = X[start_idx: end_idx]
 
-        for i, frag in enumerate(X[: end_idx]):
+        if aug_cases and extra_cases is not None:
+            cases_X = extra_cases[state][0][aug_start_idx: aug_end_idx]
+
+        for i, frag in enumerate(X):
             aug_frag = []
 
-            # With augmentation
-            if extra_cases:
+            if aug_cases:
                 # Find the case number fragment with the augmentation offset
-                case_loc = i + offset_diff
-                cases_frag = extra_cases[state][0][case_loc]
+                cases_frag = cases_X[i]
+
                 # Rebuild fragment into a 2-channel (3D) fragment
                 cubical = [[i, c_i] for i, c_i in list(zip(frag, cases_frag))]
                 aug_frag.append(cubical)
@@ -261,73 +342,49 @@ def augment_dset(dset, offset=0, num_extra_states=0, extra_cases=None,
                 # Copy and transform the original fragment into 1-channel
                 aug_frag.append([[i] for i in frag])
 
-            # Add nearest states' numbers to each fragment as well
-            for extra_state in extra_states:
-                # Find the corresponding fragment
-                extra_X_frag = dset[extra_state][0][i]
-
-                if extra_cases:
-                    # Append the death and case fragments to the
-                    # corresponding part of the augmented fragment
-                    case_loc = i + offset_diff
-                    extra_X_frag_cases = extra_cases[extra_state][0][case_loc]
-                    add_cubical = [
-                        [i, c_i] for i, c_i in list(zip(extra_X_frag,
-                                                        extra_X_frag_cases))
-                    ]
-                    aug_frag.append(add_cubical)
-                else:
-                    # Copy and stack below the existing data
-                    aug_frag.append([[i] for i in extra_X_frag])
-            
             aug_X.append(aug_frag)
+
+        # Add nearest states' numbers to each fragment as well
+        for extra_state in extra_states:
+
+            # Unpack features of the extra state
+            extra_X = dset[state][0]
+
+            # Truncate dataset(s)
+            extra_X = extra_X[start_idx: end_idx]
+
+            if aug_cases and extra_cases is not None:
+                extra_cases_X = extra_cases[extra_state][0][aug_start_idx:
+                                                            aug_end_idx]
+
+            for i, frag in enumerate(extra_X):
+
+                # Find the fragment to augment
+                aug_frag = aug_X[i]
+
+                if aug_cases:
+                    # Find the case number fragment with the augmentation offset
+                    cases_frag = extra_cases_X[i]
+
+                    # Rebuild fragment into a 2-channel (3D) fragment
+                    cubical = [[i, c_i] for i, c_i in
+                               list(zip(frag, cases_frag))]
+
+                    aug_frag.append(cubical)
+                else:
+                    # Copy and transform the original fragment into 1-channel
+                    aug_frag.append([[i] for i in frag])
 
         # Reshape X to fit the LSTM input dimensions
         aug_X = np.array(aug_X)
-        num_samples, num_states, lag, channels = aug_X.shape
-        aug_X = aug_X.reshape(num_samples, 1, num_states, lag, channels)
+        num_frags, num_states, lag, channels = aug_X.shape
+        aug_X = aug_X.reshape(num_frags, 1, num_states, lag, channels)
 
         aug_dset[state].append(aug_X)
 
         # Store the labels considering prediction offset
-        aug_dset[state].append(np.array(y[offset:]))
-
-        # For unlabeled fragments
-        aug_Z = []
-
-        # Find the earliest unused data's indices
-        start_idx = Z.shape[0] - offset - lag
-        cases_start_idx = Z.shape[0] - aug_offset - lag
-
-        # With augmentation
-        if extra_cases:
-            # Rebuild into a 2-channel (3D) array
-            cases_Z = extra_cases[state][2][cases_start_idx:]
-            cubical = [
-                [i, c_i] for i, c_i in list(zip(Z[start_idx:],
-                                                cases_Z))
-            ]
-            aug_Z.append(cubical)
-        else:
-            # Copy the unused data with 1-channel configuration
-            aug_Z.append([[i] for i in Z[start_idx:]])
-
-        # Augment the data with other states' numbers
-        for extra_state in extra_states:
-            extra_Z = dset[extra_state][2][start_idx:]
-            if extra_cases:
-                # Append the death and case numbers to the
-                # corresponding part of the augmented array
-                extra_Z_cases = extra_cases[extra_state][2][cases_start_idx:]
-                add_cubical = [
-                    [i, c_i] for i, c_i in list(zip(extra_Z, extra_Z_cases))
-                ]
-                aug_Z.append(add_cubical)
-            else:
-                # Stack below the existing unused samples
-                aug_Z.append([[i] for i in extra_Z])
-
-        aug_dset[state].append(np.array(aug_Z))
+        start_idx_y = num_samples - max_samples
+        aug_dset[state].append(np.array(y[start_idx_y:]))
 
     return aug_dset
 
@@ -356,7 +413,7 @@ def split_dset(dset, train_size=0.7, validation_size=0.2):
 
     for state in dset.keys():
         # Unpack features, corresponding labels, and unobserved samples
-        X, y, Z = dset[state]
+        X, y = dset[state]
 
         # Find the indices to slice the dataset
         num_samples = X.shape[0]
@@ -373,37 +430,63 @@ def split_dset(dset, train_size=0.7, validation_size=0.2):
         split[state] = {
             'train': convert_to_tensor(train_X, train_y),
             'validate': convert_to_tensor(val_X, val_y),
-            'test': convert_to_tensor(test_X, test_y),
-            'unused': Z
+            'test': convert_to_tensor(test_X, test_y)
         }
     
     return split
 
 
-def generate_dset_LSTM(lag, num_extra_states=0, case_offset=0, death_offset=0,
+def generate_dset_LSTM(lag, num_extra_states=0, cases_offset=0, deaths_offset=0,
                        aug_offset=0):
-    """High level dataset generation function."""
+    """High level dataset generation function.
 
-    # Indicate csv destinations
-    cases_dst = os.getcwd() + '/data/CONVENIENT_us_confirmed_cases.csv'
-    deaths_dst = os.getcwd() + '/data/CONVENIENT_us_deaths.csv'
+    Args:
+        lag:                An integer representing the number of prior days
+                                used for prediction with no offset.
+        num_extra_states:   An integer representing the number of extra
+                                states added for data augmentation.
+                                Default = 0
+        cases_offset:       An integer representing the number of days
+                                between the last day of lag and the output
+                                date for case numbers.
+                                Default = 0
+        deaths_offset:      An integer representing the number of days
+                                between the last day of lag and the output
+                                date for deaths numbers.
+                                Default = 0
+        aug_offset:         An integer representing the number of days
+                                between the last day of lag and the output
+                                date for added case numbers.
+                                Default = 0
+
+    Returns:
+        cases:              A dictionary representing the sliced cases dataset.
+                                It has the format of:
+                                {state -> 'train'/'validate'/'test' -> [X, y]}}
+        deaths:             A dictionary representing the sliced deaths dataset.
+                                It has the format of:
+                                {state -> 'train'/'validate'/'test' -> [X, y]}}
+    """
 
     # Unpack the raw cases and deaths datasets
-    cases_dset = read_dataset(cases_dst)
-    deaths_dset = read_dataset(deaths_dst)
+    cases_dset = read_dataset(dset_name='cases', update=update_dset)
+    deaths_dset = read_dataset(dset_name='deaths', update=update_dset)
 
+    # Convert both raw dataset to time series dataset with no augmentation
     time_cases = convert_to_time_series(cases_dset, lag)
     time_deaths = convert_to_time_series(deaths_dset, lag)
 
+    # Augment and split the datasets
     cases = split_dset(augment_dset(
         time_cases,
-        offset=case_offset,
-        num_extra_states=num_extra_states
+        offset=cases_offset,
+        num_extra_states=num_extra_states,
+        aug_cases=False
     ))
 
     deaths = split_dset(augment_dset(
         time_deaths,
-        offset=death_offset,
+        offset=deaths_offset,
         num_extra_states=num_extra_states,
         extra_cases=time_cases,
         aug_offset=aug_offset
@@ -411,9 +494,7 @@ def generate_dset_LSTM(lag, num_extra_states=0, case_offset=0, death_offset=0,
 
     return cases, deaths
 
-# TODO
-#  1) Pickle the dataset
-#  2) PREDICTION USE DATASET FUNCTION: REMEMBER TO RESHAPE EACH Z
+# TODO prediction used dataset for LSTM
 
 
 if __name__ == '__main__':
