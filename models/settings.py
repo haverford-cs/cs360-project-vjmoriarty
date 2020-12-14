@@ -14,15 +14,16 @@ rescale = 1000
 # FINE TUNING RELATED
 # Set the random grid search status
 random = True
-random_size = 50
+random_size_LSTM = 50
+random_size_ARIMAX = 1
 
 # MODEL RELATED
 # Set ARIMAX fine tuning parameters
 params_ARIMAX = {
-    'num_extra_states': [i for i in range(7)],
-    'p': [i for i in range(15)],
-    'd': [i for i in range(5)],
-    'q': [i for i in range(5)]
+    'num_extra_states': [i for i in range(6)],
+    'p': [i for i in range(2, 14)],
+    'd': [i for i in range(2)],
+    'q': [i for i in range(2)]
 }
 
 # Set LSTM fine tuning parameters
