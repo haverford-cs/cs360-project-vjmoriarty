@@ -27,6 +27,7 @@ states = list(population_by_state.keys())
 
 # Suppress the warnings from tensorflow
 tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.ERROR)
+tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.INFO)
 
 
 def fine_tune_ARIMAX(random=True, random_size=30):
