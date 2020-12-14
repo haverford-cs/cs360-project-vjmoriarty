@@ -6,7 +6,7 @@ Date: 12/05/2020
 
 from statsmodels.tsa.arima_model import ARIMA
 
-from dataset import generate_dset_ARIMAX
+from data.dataset import generate_dset_ARIMAX
 
 
 # TODO BUILD FIT AND PREDICT IN TWO FUNCTION
