@@ -185,16 +185,19 @@ def generate_dset_ARIMAX(rescale=1000, num_extra_states=0, aug_cases=True,
         num_val = int(validation_size * num_samples)
         end_idx_val = num_train + num_val
 
+        # Given that ARIMAX can't do separate dataframe input, the model will
+        # be "trained" on all datapoints, but only validate and test on the
+        # corresponding partitions
         cases[state] = {
-            'train': cases_df[: num_train],
-            'validate': cases_df[num_train: end_idx_val],
-            'test': cases_df[end_idx_val:]
+            'train': cases_df,
+            'validate': [num_train, end_idx_val],
+            'test': [end_idx_val, num_samples]
         }
 
         deaths[state] = {
-            'train': deaths_df[: num_train],
-            'validate': deaths_df[num_train: end_idx_val],
-            'test': deaths_df[end_idx_val:]
+            'train': deaths_df,
+            'validate': [num_train, end_idx_val],
+            'test': [end_idx_val, num_samples]
         }
 
     return cases, deaths
