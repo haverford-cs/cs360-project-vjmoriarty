@@ -4,9 +4,11 @@ Authors: Vincent Yu
 Date: 12/03/2020
 """
 
+import itertools
+
 
 def correct_datetime(date):
-    """TODO DOCUMENTATION"""
+    """Correct the data-time format from the original csv"""
     time_components = date.split('/')
     correct_date = ''
     for comp in time_components:
@@ -18,5 +20,10 @@ def correct_datetime(date):
     return correct_date[:-1]
 
 
-def test():
-    return 'Hey!'
+def get_combos(ft_params):
+    """Generate all possible combinations given a grid of parameters"""
+    combinations = []
+    keys, values = zip(*ft_params.items())
+    for bundle in itertools.product(*values):
+        combinations.append(dict(zip(keys, bundle)))
+    return combinations
