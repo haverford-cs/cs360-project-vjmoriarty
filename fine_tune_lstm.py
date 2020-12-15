@@ -119,7 +119,7 @@ def fine_tune_LSTM(random=True, random_size=30):
             cases_train, cases_val = cases[state]['train'], \
                                      cases[state]['validate']
 
-            cases_history = run_lstm(
+            cases_history, _ = run_lstm(
                 cases_train,
                 cases_val,
                 epochs=epochs,
@@ -135,7 +135,7 @@ def fine_tune_LSTM(random=True, random_size=30):
             deaths_train, deaths_val = deaths[state]['train'], \
                                        deaths[state]['validate']
 
-            deaths_history = run_lstm(
+            deaths_history, _ = run_lstm(
                 deaths_train,
                 deaths_val,
                 epochs=epochs,
