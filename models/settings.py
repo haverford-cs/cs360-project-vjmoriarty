@@ -6,7 +6,7 @@ Date: 12/03/2020
 
 # GENERAL SETTINGS
 # Set to true to re-read the latest version of the dataset csv files
-update_dset = True
+update_dset = False
 
 # Set the rescale factor to inflate the dataset
 rescale = 1000
@@ -41,7 +41,7 @@ epochs = 25
 
 # PREDICTION RELATED
 # Testing or Predicted
-pred_mode = False
+pred_mode = True
 
 # Rolling prediction iterations
-rolling_iters = 2
+rolling_iters = 10
