@@ -433,7 +433,7 @@ def split_dset(dset, train_size=0.7, validation_size=0.2):
         split[state] = {
             'train': convert_to_tensor(train_X, train_y),
             'validate': convert_to_tensor(val_X, val_y),
-            'test': convert_to_tensor(test_X, test_y)
+            'test': [test_X, test_y]
         }
     
     return split
@@ -497,11 +497,10 @@ def generate_dset_LSTM(lag, num_extra_states=0, cases_offset=0, deaths_offset=0,
 
     return cases, deaths
 
-# TODO prediction used dataset for LSTM
-
 
 if __name__ == '__main__':
 
+    # Sanity check
     # cases, deaths = generate_dset_ARIMAX(num_extra_states=5)
 
     cases_lstm, deaths_lstm = generate_dset_LSTM(7, 5, 4, 4)
