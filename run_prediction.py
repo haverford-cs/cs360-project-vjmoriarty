@@ -39,7 +39,13 @@ ft_dst_ARIMAX = os.getcwd() + '/models/params/arimax_params.pkl'
 
 
 def test_ARIMAX():
-    """TODO DOCUMENTATION"""
+    """Running test data on the top 5 best performing ARIMAX models
+
+    Returns:
+        test_rmses:     A dictionary representing the avg rmse of each
+                            hyper-parameter combinations. It has the format of:
+                            {'cases'/'deaths' --> [avg rmse of each model]}
+    """
 
     # Unpack top 5 hyper-parameter combinations
     with open(ft_dst_ARIMAX, 'rb') as f:
@@ -54,6 +60,7 @@ def test_ARIMAX():
 
         for combo in params:
 
+            # Unpack parameters
             num_extra_states, p, d, q = [int(i) for i in combo.split(', ')]
             order = (p, d, q)
 
@@ -98,7 +105,13 @@ def test_ARIMAX():
 
 
 def test_LSTM():
-    """TODO DOCUMENTATION"""
+    """Running test data on the top 5 best performing LSTM models
+
+    Returns:
+        test_rmses:     A dictionary representing the avg rmse of each
+                            hyper-parameter combinations. It has the format of:
+                            {'cases'/'deaths' --> [avg rmse of each model]}
+    """
 
     # Unpack top 5 hyper-parameter combinations
     with open(ft_dst_LSTM, 'rb') as f:
@@ -109,6 +122,7 @@ def test_LSTM():
 
     for dset_type in test_rmses:
 
+        # Unpack and format the parameters
         params = [i[0] for i in ft_params[dset_type]]
 
         for combo in params:
@@ -162,7 +176,7 @@ def test_LSTM():
 
 
 def test_models():
-    """TODO DOCUMENTATION"""
+    """Test both types of models and log the result through pickle"""
     rmses_ARIMAX = test_ARIMAX()
     rmses_LSTM = test_LSTM()
 
@@ -179,8 +193,18 @@ def test_models():
     return rmses_LSTM, rmses_ARIMAX
 
 
-def predict_ARIMAX():
-    """TODO DOCUMENTATION"""
+def predict_ARIMAX(iters):
+    """Rolling prediction for ARIMAX
+
+    Args:
+        iters:      An integer representing the number of
+                        iterations/steps to predict.
+
+    Returns:
+        preds:      A dictionary representing the cases and deaths
+                        predictions for each state. It has the format of:
+                        {state --> 'cases'/'deaths' --> iter --> [predictions]}
+    """
 
     # Unpack top 5 hyper-parameter combinations
     with open(ft_dst_ARIMAX, 'rb') as f:
@@ -199,6 +223,7 @@ def predict_ARIMAX():
 
         for combo in params:
 
+            # Unpack parameters
             num_extra_states, p, d, q = [int(i) for i in combo.split(', ')]
             order = (p, d, q)
 
@@ -218,7 +243,7 @@ def predict_ARIMAX():
     # added for the next round until all iterations are reached. For data
     # augmentation, take the average of cases for augmentation, and keep
     # track of this separately
-    for i in range(rolling_iters):
+    for i in range(iters):
 
         print(f'Rolling prediction iteration no.{i+1}')
 
@@ -335,7 +360,7 @@ def main():
     """Main driver function"""
 
     if pred_mode:
-        _ = predict_ARIMAX()
+        _ = predict_ARIMAX(rolling_iters)
     else:
         _ = test_models()
 
