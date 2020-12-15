@@ -3,16 +3,33 @@
 ## Table of Contents
   * [Project Introduction](#project-introduction)
   * [Usage](#usage)
+  * [Things to Add](#things-to-add)
   * [Lab Notebook](#lab-notebook)
      * [11/28/2020](#11282020---2-hrs)
      * [12/01/2020](#12012020---2-hrs)
      * [12/03/2020](#12032020---6-hrs)
      * [12/05/2020](#12052020---6-hrs)
      * [12/13/2020](#12132020---9-hrs)
+     * [12/14/2020](#12142020---12-hrs)
 
 ## Project Introduction
 
+---
+
 ## Usage
+
+---
+
+## Things to Add?
+Here are some of the things that can be added if I have one or two more weeks:
+- LSTM class object instead of function.
+- LSTM architecture + hyper-parameter tuning on HPC.
+- LSTM rolling prediction function.
+- More modularized repo.
+- Explore other exogenous variables to improve prediction performance.
+- Multi-thread everything.
+
+---
 
 ## Lab Notebook
 
@@ -66,9 +83,22 @@
     - NOTE: can't do architecture search within the time limit. Grid and
      architecture must change simultaneously.
 - Fine tuning on lab machines. Fingers crossed.
-- TODO: ARIMAX train, validate, fine tuning.
+- Completed ARIMAX train, validate, fine tuning.
 - TODO: Run test data on both models
-- TODO: Run future predictions for LSTM
+- TODO: Run future predictions with the better model.
 
+### 12/14/2020 - 13 hrs
+- Separated LSTM and ARIMAX fine tuning scripts.
+- Added bash script for ARIMAX fine tuning to avoid convergence exception and
+ long runtime. 
+- ARIMAX and LSTM (with old architecture) random grid search fine tuning
+ completed.
+- Added test functions and rolling prediction functions. 
+- Running test results and rolling predictions for ARIMAX on lab machines. 
+Fingers crossed.
+- TODO: Finished up interactive graphs and some part of the presentation.
+- TODO: Run test data on both models once ARIMAX fine tuning is over.
 
-### To be Continued...
+### 12/15/2020 - 3 hrs
+- Run test data on both models with fine tuned hyper-parameters
+- Wrap up presentation and README.md
