@@ -3,32 +3,57 @@
 ## Table of Contents
   * [Project Introduction](#project-introduction)
   * [Usage](#usage)
-  * [Things to Add](#things-to-add)
   * [Lab Notebook](#lab-notebook)
      * [11/28/2020](#11282020---2-hrs)
      * [12/01/2020](#12012020---2-hrs)
      * [12/03/2020](#12032020---6-hrs)
      * [12/05/2020](#12052020---6-hrs)
      * [12/13/2020](#12132020---9-hrs)
-     * [12/14/2020](#12142020---12-hrs)
+     * [12/14/2020](#12142020---13-hrs)
+     * [12/15/2020](#12152020---5-hrs)
 
 ## Project Introduction
+
+This repo contains the python scripts and bash scripts implemented for the
+ CS360 final project, along with some prediction results used for
+  presentation. For a more comprehensive introduction to the whole project
+   and pipeline design, see ```presentation.ipynb``` through jupyter notebook
+    for more details.
 
 ---
 
 ## Usage
 
----
+- Before running everything, make sure your working environment is set up
+ properly. The scripts in this repo require ```python >= 3.6```. As for
+  package, you can install all required packages by running:
+  ```bash
+    pip install -r requirements.txt
+  ```
 
-## Things to Add?
-Here are some of the things that can be added if I have one or two more weeks:
-- LSTM class object instead of function.
-- LSTM architecture + hyper-parameter tuning on HPC.
-- LSTM rolling prediction function.
-- More modularized repo.
-- Explore other exogenous variables to improve prediction performance.
-- Multi-thread everything.
+- Model configurations are stores at ```models/settings.py```. It contains
+ general parameters for dataset generations, model specific parameters, and
+  fine tuning related settings. Check out the script and make sure everything
+   is as desired before running any models.
+  
+- To fine tune LSTM models, either run the bash script or the python script
+ directly. All configurations are in ```models/settings.py```.
+ 
+- To fine tune ARIMAX models, run
+    ```bash
+    bash fine_tune_arimax.sh
+    ```
+    - Some general settings, such as random search, are in ```models/settings.py```. 
+    Other settings, such as random size and max time allowed for each
+     hyper-parameter combination training, can be found in
+      ```fine_tune_arimax.sh```. 
 
+- To test models or use models to do rolling predictions, toggle the setting
+ in  ```models/settings.py``` before running ```run_prediction.sh```.
+ 
+- To see result visualization, open up the presentation jupyter notebook in
+ the project and run all cells. The prediction plots are at the bottom in
+  section 5.
 ---
 
 ## Lab Notebook
@@ -99,6 +124,15 @@ Fingers crossed.
 - TODO: Finished up interactive graphs and some part of the presentation.
 - TODO: Run test data on both models once ARIMAX fine tuning is over.
 
-### 12/15/2020 - 3 hrs
+### 12/15/2020 - 5 hrs
 - Run test data on both models with fine tuned hyper-parameters
 - Wrap up presentation and README.md
+
+---
+
+## References
+* [COVID data from John Hopkins University](https://www.kaggle.com/antgoldbloom/covid19-data-from-john-hopkins-university)
+* Documentations:
+    * [Tensorflow Documentation on ConvLSTM](https://www.tensorflow.org/api_docs/python/tf/keras/layers/ConvLSTM2D)
+    * [ARIMA Documentation](https://www.statsmodels.org/stable/generated/statsmodels.tsa.arima.model.ARIMA)
+    * [Plotly Documentation](https://plotly.com/python/)
