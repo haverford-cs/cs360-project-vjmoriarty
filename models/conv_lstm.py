@@ -95,7 +95,7 @@ def run_lstm(train_dset, val_dset, epochs=40, verbose=0):
                                   )
                   )
 
-    return history.history
+    return history.history, model
 
 
 def lstm_test():
