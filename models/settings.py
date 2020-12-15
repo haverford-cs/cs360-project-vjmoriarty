@@ -6,7 +6,7 @@ Date: 12/03/2020
 
 # GENERAL SETTINGS
 # Set to true to re-read the latest version of the dataset csv files
-update_dset = False
+update_dset = True
 
 # Set the rescale factor to inflate the dataset
 rescale = 1000
@@ -21,7 +21,7 @@ random_size_ARIMAX = 1
 # Set ARIMAX fine tuning parameters
 params_ARIMAX = {
     'num_extra_states': [i for i in range(6)],
-    'p': [i for i in range(2, 14)],
+    'p': [i for i in range(5, 10)],
     'd': [i for i in range(2)],
     'q': [i for i in range(2)]
 }
@@ -38,3 +38,10 @@ params_LSTM = {
 # Some LSTM related hyper-parameters
 batch_size = 10
 epochs = 25
+
+# PREDICTION RELATED
+# Testing or Predicted
+pred_mode = False
+
+# Rolling prediction iterations
+rolling_iters = 2
