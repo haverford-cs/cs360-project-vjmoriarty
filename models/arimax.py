@@ -7,7 +7,7 @@ Date: 12/05/2020
 from math import sqrt
 
 import numpy as np
-from statsmodels.tsa.arima_model import ARIMA
+from statsmodels.tsa.arima.model import ARIMA
 from sklearn.metrics import mean_squared_error
 
 from data.dataset import generate_dset_ARIMAX
@@ -46,14 +46,10 @@ class ARIMAX:
         # Find the endogenous and exogenous variables
         exog_cols = [col for col in self.data.columns if col != self.state]
 
-        eng, exog = self.data[self.state], self.data[exog_cols]
+        self.eng, self.exog = self.data[self.state], self.data[exog_cols]
 
         # Fit the model with given data and order
-        self.model = ARIMA(
-            eng,
-            exog=exog,
-            order=self.order
-        ).fit(disp=0)
+        self.model = ARIMA(self.eng, exog=self.exog, order=self.order).fit()
 
     def predict(self, start_idx, end_idx):
         """Predict the time series output given a fitted model"""
@@ -65,6 +61,18 @@ class ARIMAX:
 
         # Unpack the true values
         self.y_true = np.array(self.data[self.state][start_idx: end_idx])
+
+    def forecast(self):
+        """One step prediction"""
+
+        # Get the one step forecast with exog variables input
+        one_step_pred = self.model.forecast(exog=self.exog.iloc[[-1]])
+
+        # Find the date for index and the predicted value, both as output
+        date = str(one_step_pred.index[0]).split(' ')[0]
+        y_pred = one_step_pred[0]
+
+        return date, max(y_pred, 0)
 
     def evaluate(self):
         """Model performance evaluation"""
