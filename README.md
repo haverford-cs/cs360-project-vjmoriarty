@@ -2,6 +2,7 @@
 
 ## Table of Contents
   * [Project Introduction](#project-introduction)
+  * [Folder Structure](#folder-structure)
   * [Usage](#usage)
   * [Lab Notebook](#lab-notebook)
      * [11/28/2020](#11282020---2-hrs)
@@ -15,10 +16,54 @@
 ## Project Introduction
 
 This repo contains the python scripts and bash scripts implemented for the
- CS360 final project, along with some prediction results used for
-  presentation. For a more comprehensive introduction to the whole project
-   and pipeline design, see ```presentation.ipynb``` through jupyter notebook
-    for more details.
+CS360 final project: a comparison between ARIMAX and ConvLSTM models on COVID data predictions.
+For a more comprehensive introduction to the whole project
+and pipeline design, see ```presentation.ipynb``` through jupyter notebook
+for more details.
+
+---
+
+## Folder Structure
+```
+.
+├── README.md
+├── __init__.py
+│
+├── data
+│   ├── CONVENIENT_us_confirmed_cases.csv
+│   ├── CONVENIENT_us_deaths.csv
+│   ├── __init__.py
+│   ├── dataset.py
+│   └── info.py
+│
+├── fine_tune_arimax.py
+├── fine_tune_arimax.sh
+├── fine_tune_lstm.py
+├── fine_tune_lstm.sh
+│
+├── models
+│   ├── __init__.py
+│   ├── arimax.py
+│   ├── conv_lstm.py
+│   ├── params
+│   │   ├── arimax_params.pkl
+│   │   └── lstm_params.pkl
+│   └── settings.py
+│
+├── presentation.ipynb
+├── requirements.txt
+│
+├── results
+│   ├── __init__.py
+│   ├── arimax_predictions.pkl
+│   └── test_rmses.pkl
+│
+├── run_prediction.py
+├── run_prediction.sh
+└── utils
+    ├── __init__.py
+    └── utils.py
+```
 
 ---
 
