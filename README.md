@@ -148,7 +148,7 @@ for more details.
      pickled model parameters.
     - results: contains jupyter notebook, graphs, etc.
     - utils: utils.py, helper functions
-- Added data cutoff and different offset settings for augmented deaths dataset.
+- Added data cutoff and different lag settings for augmented deaths dataset.
 - Completed LSTM fine tuning related scripts
     - NOTE: can't do architecture search within the time limit. Grid and
      architecture must change simultaneously.

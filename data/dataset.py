@@ -105,7 +105,7 @@ def generate_dset_ARIMAX(rescale=1000, num_extra_states=0, aug_cases=True,
         num_extra_states:   An integer representing the number of extra
                                 states added for data augmentation.
                                 Default = 0
-        aug_cases:        A boolean representing if the death data is
+        aug_cases:          A boolean representing if the death data is
                                 augmented with cases numbers as well.
                                 Default = True
         train_size:         A float representing the percentage of data used
@@ -224,14 +224,14 @@ def convert_to_tensor(features, labels, batch_size=10):
     return dset
 
 
-def convert_to_time_series(dset, lag, rescale=1000):
+def convert_to_time_series(dset, order, rescale=1000):
     """Convert the number of daily cases/deaths to a time series dataset
 
     Args:
         dset:           A dictionary representing the original daily number
                             by state dataset. It should have the format of
                             {state: [daily numbers], 'dates': [dates]}
-        lag:            An integer representing the time lag used to
+        order:          An integer representing the time order used to
                             construct time series features.
         rescale:        An integer (or float) to rescale the normalized daily
                             number.
@@ -255,9 +255,9 @@ def convert_to_time_series(dset, lag, rescale=1000):
         state_ppl = population_by_state[state]
         daily_num = [num * rescale / state_ppl for num in dset[state]]
 
-        # Capture fragments of length <lag> as feature values
-        ft_vals = [daily_num[i: i+lag] for i in range(total_days - lag)]
-        labels = [daily_num[i] for i in range(lag, total_days)]
+        # Capture fragments of length <order> as feature values
+        ft_vals = [daily_num[i: i+order] for i in range(total_days - order)]
+        labels = [daily_num[i] for i in range(order, total_days)]
 
         # Convert the lists into numpy array before storage
         X, y = np.array(ft_vals), np.array(labels)
@@ -266,15 +266,15 @@ def convert_to_time_series(dset, lag, rescale=1000):
     return time_dset
 
 
-def augment_dset(dset, offset=0, num_extra_states=0,
-                 aug_cases=True, extra_cases=None, aug_offset=0):
-    """Augment the dataset with offset and additional state numbers
+def augment_dset(dset, lag=0, num_extra_states=0,
+                 aug_cases=True, extra_cases=None, aug_lag=0):
+    """Augment the dataset with lag and additional state numbers
 
     Args:
         dset:               A dictionary representing the original time
                                 series dataset. It has the format of:
                                 {state --> [X, y]}
-        offset:             An integer representing the offset number of days
+        lag:                An integer representing the lag number of days
                                 from the output number.
                                 Default = 0
         num_extra_states:   An integer representing the number of extra
@@ -284,9 +284,9 @@ def augment_dset(dset, offset=0, num_extra_states=0,
                                 cases numbers for death augmentation or not.
                                 Default = True
         extra_cases:        A dictionary representing the cases dataset with
-                                the same lag as <dset>. It has the format of:
+                                the same order as <dset>. It has the format of:
                                 {state --> [X, y]}
-        aug_offset:         An integer representing the offset number of days
+        aug_lag:            An integer representing the lag number of days
                                 from the output for added case numbers.
                                 Default = 0
 
@@ -296,19 +296,19 @@ def augment_dset(dset, offset=0, num_extra_states=0,
                                 {state_name: [X, y]}
     """
 
-    # Make sure lag and offset are not too large to not have a proper dataset
+    # Make sure order and lag are not too large to not have a proper dataset
     random_state = list(dset.keys())[0]
     num_samples = dset[random_state][1].shape[0]
 
     # Find out the maximum number of samples the dataset can have
-    max_samples = num_samples - max(offset, aug_offset)
+    max_samples = num_samples - max(lag, aug_lag)
 
     # Calculate where to truncate the dataset(s)
-    end_idx = num_samples - offset
+    end_idx = num_samples - lag
     start_idx = end_idx - max_samples
 
     if aug_cases:
-        aug_end_idx = num_samples - aug_offset
+        aug_end_idx = num_samples - aug_lag
         aug_start_idx = aug_end_idx - max_samples
 
     # Initialize aggregated dataset
@@ -322,7 +322,7 @@ def augment_dset(dset, offset=0, num_extra_states=0,
         # Unpack features and labels
         X, y = dset[state]
 
-        # Reconstruct features with offset and augmentation with case numbers
+        # Reconstruct features with lag and augmentation with case numbers
         aug_X = []
 
         # Truncate dataset(s)
@@ -335,7 +335,7 @@ def augment_dset(dset, offset=0, num_extra_states=0,
             aug_frag = []
 
             if aug_cases:
-                # Find the case number fragment with the augmentation offset
+                # Find the case number fragment with the augmentation lag
                 cases_frag = cases_X[i]
 
                 # Rebuild fragment into a 2-channel (3D) fragment
@@ -366,7 +366,7 @@ def augment_dset(dset, offset=0, num_extra_states=0,
                 aug_frag = aug_X[i]
 
                 if aug_cases:
-                    # Find the case number fragment with the augmentation offset
+                    # Find the case number fragment with the augmentation lag
                     cases_frag = extra_cases_X[i]
 
                     # Rebuild fragment into a 2-channel (3D) fragment
@@ -380,12 +380,12 @@ def augment_dset(dset, offset=0, num_extra_states=0,
 
         # Reshape X to fit the LSTM input dimensions
         aug_X = np.array(aug_X)
-        num_frags, num_states, lag, channels = aug_X.shape
-        aug_X = aug_X.reshape(num_frags, 1, num_states, lag, channels)
+        num_frags, num_states, order, channels = aug_X.shape
+        aug_X = aug_X.reshape(num_frags, 1, num_states, order, channels)
 
         aug_dset[state].append(aug_X)
 
-        # Store the labels considering prediction offset
+        # Store the labels considering prediction lag
         start_idx_y = num_samples - max_samples
         aug_dset[state].append(np.array(y[start_idx_y:]))
 
@@ -439,26 +439,26 @@ def split_dset(dset, train_size=0.7, validation_size=0.2):
     return split
 
 
-def generate_dset_LSTM(lag, num_extra_states=0, cases_offset=0, deaths_offset=0,
-                       aug_offset=0):
+def generate_dset_LSTM(order, num_extra_states=0, cases_lag=0,
+                       deaths_lag=0,aug_lag=0):
     """High level dataset generation function.
 
     Args:
-        lag:                An integer representing the number of prior days
-                                used for prediction with no offset.
+        order:              An integer representing the number of prior days
+                                used for prediction with no lag.
         num_extra_states:   An integer representing the number of extra
                                 states added for data augmentation.
                                 Default = 0
-        cases_offset:       An integer representing the number of days
-                                between the last day of lag and the output
+        cases_lag:          An integer representing the number of days
+                                between the last day of order and the output
                                 date for case numbers.
                                 Default = 0
-        deaths_offset:      An integer representing the number of days
-                                between the last day of lag and the output
+        deaths_lag:         An integer representing the number of days
+                                between the last day of order and the output
                                 date for deaths numbers.
                                 Default = 0
-        aug_offset:         An integer representing the number of days
-                                between the last day of lag and the output
+        aug_lag:            An integer representing the number of days
+                                between the last day of order and the output
                                 date for added case numbers.
                                 Default = 0
 
@@ -476,23 +476,23 @@ def generate_dset_LSTM(lag, num_extra_states=0, cases_offset=0, deaths_offset=0,
     deaths_dset = read_dataset(dset_name='deaths', update=update_dset)
 
     # Convert both raw dataset to time series dataset with no augmentation
-    time_cases = convert_to_time_series(cases_dset, lag)
-    time_deaths = convert_to_time_series(deaths_dset, lag)
+    time_cases = convert_to_time_series(cases_dset, order)
+    time_deaths = convert_to_time_series(deaths_dset, order)
 
     # Augment and split the datasets
     cases = split_dset(augment_dset(
         time_cases,
-        offset=cases_offset,
+        lag=cases_lag,
         num_extra_states=num_extra_states,
         aug_cases=False
     ))
 
     deaths = split_dset(augment_dset(
         time_deaths,
-        offset=deaths_offset,
+        lag=deaths_lag,
         num_extra_states=num_extra_states,
         extra_cases=time_cases,
-        aug_offset=aug_offset
+        aug_lag=aug_lag
     ))
 
     return cases, deaths
@@ -513,7 +513,7 @@ if __name__ == '__main__':
         print(ft.shape)
         print(val.shape)
 
-    # Output should be (with batch_size = 10, extra_states = 5, lag = 7):
+    # Output should be (with batch_size = 10, extra_states = 5, order = 7):
     # (10, 1, 6, 7, 1)
     # (10,)
     #

@@ -28,11 +28,11 @@ params_ARIMAX = {
 
 # Set LSTM fine tuning parameters
 params_LSTM = {
-    'lag': [i for i in range(15)],
+    'order': [i for i in range(15)],
     'num_extra_states': [i for i in range(2, 7)],
-    'cases_offset': [i for i in range(11)],
-    'deaths_offset': [i for i in range(10)],
-    'aug_offset': [i for i in range(10)]
+    'cases_lag': [i for i in range(11)],
+    'deaths_lag': [i for i in range(10)],
+    'aug_lag': [i for i in range(10)]
 }
 
 # Some LSTM related hyper-parameters

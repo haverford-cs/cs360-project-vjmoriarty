@@ -127,11 +127,11 @@ def test_LSTM():
 
         for combo in params:
             formatted_params = {
-                'lag': 0,
+                'order': 0,
                 'num_extra_states': 0,
-                'cases_offset': 0,
-                'deaths_offset': 0,
-                'aug_offset': 0
+                'cases_lag': 0,
+                'deaths_lag': 0,
+                'aug_lag': 0
             }
 
             param_vals = [int(i) for i in combo.split(', ')]
