@@ -1,5 +1,5 @@
 statsmodels==0.10.1
-numpy==1.17.2
+numpy==1.22.0
 pandas==0.25.1
 plotly==4.14.1
 scikit_learn==0.23.2
